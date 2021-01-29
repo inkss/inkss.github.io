@@ -1,0 +1,40 @@
+name: AutoWakeUp
+on:
+  schedule:
+    - cron: "*/20 23,0-15 * * *"
+  push:
+    branches:
+      - master
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Setup Deploy Private Key
+        env:
+          DEPLOY_KEY: ${{ secrets.TOKEN }}
+        run: |
+          mkdir -p ~/.ssh/
+          echo "$DEPLOY_KEY" > ~/.ssh/id_rsa 
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan github.com >> ~/.ssh/known_hosts
+          git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git config --global user.name "github-actions[bot]"
+      - name: Clone && Curl
+        run: |
+          git clone git@github.com:inkss/inkss.github.io.git ~/inkss
+          cd ~/inkss
+          git checkout action
+          git reset --soft efb41ea0f3b645898448713a4348170bfaeb5b00
+          if curl -sS --connect-timeout 100 -m 7200 'https://info.inkss.cn/'; then
+            endDate=`date -d '+8 hours' +'%Y-%m-%d %H:%M:%S'`
+            echo "★ [$endDate] Successful" >> readme.txt
+          else
+            endDate=`date -d '+8 hours' +'%Y-%m-%d %H:%M:%S'`
+            echo "★ [$endDate] Fail" >> readme.txt
+          fi
+      - name: Commit
+        run: |
+          cd ~/inkss
+          git add .
+          git commit -m "Successfully Wake - $(git rev-parse --short HEAD)" -a
+          git push -f
